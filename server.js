@@ -8,6 +8,7 @@ const likeRoutes = require("./routes/articleRoutes");
 
 const connectDB = require("./db");
 const authRoutes = require("./routes/authRoutes");
+
 connectDB();
 
 const app = express();

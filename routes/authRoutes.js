@@ -9,6 +9,9 @@ const { MongoDBSessionStorage } = require("@shopify/shopify-app-session-storage-
 
 const Shop = require("../models/Shop");
 
+const app = express(); // ✅ create the app here
+const serverless = require("serverless-http"); // ✅ use this for serverless
+
 // Setup MongoDB session storage
 const sessionStorage = new MongoDBSessionStorage(
   process.env.MONGO_URI,   // Your Atlas connection string
@@ -64,4 +67,4 @@ router.get("/auth/callback", async (req, res) => {
   }
 });
 
-module.exports = router;
+module.exports = serverless(app);
