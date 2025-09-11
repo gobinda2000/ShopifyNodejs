@@ -24,6 +24,13 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(express.json());
 
+// Test route
+app.get('/test', (req, res) => {
+  res.json({
+    message: "Test route is working!",
+    timestamp: new Date().toISOString()
+  });
+});
 
 app.use("/", authRoutes);
 // Routes
