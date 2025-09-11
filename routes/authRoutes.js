@@ -27,8 +27,14 @@ const shopify = shopifyApi({
   isEmbeddedApp: true,
   restResources,
   adapter: nodeAdapter,
-  sessionStorage, // ✅ now using MongoDB instead of memory
+  sessionStorage,
+  // Add this to fix SameSite cookie issue:
+  cookie: {
+    secure: true,         // must be true for HTTPS
+    sameSite: "none",     // allow cross-site in embedded Shopify apps
+  },
 });
+
 
 router.get("/auth", async (req, res) => {
   const shop = req.query.shop;
