@@ -28,7 +28,7 @@ app.use(express.json());
 // Test route
 app.get('/test', (req, res) => {
   res.json({
-    message: "Test route is working!",
+    message: "Test route is working Fine",
     timestamp: new Date().toISOString()
   });
 });
