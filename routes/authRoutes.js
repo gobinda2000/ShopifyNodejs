@@ -1,22 +1,22 @@
+// server.js
 require("dotenv").config();
 const express = require("express");
-const router = express.Router();
-
+const mongoose = require("mongoose");
 const { shopifyApi, LATEST_API_VERSION } = require("@shopify/shopify-api");
 const { nodeAdapter } = require("@shopify/shopify-api/adapters/node");
 const { restResources } = require("@shopify/shopify-api/rest/admin/2024-04");
-const { MongoDBSessionStorage } = require("@shopify/shopify-app-session-storage-mongodb"); // ✅
+const { MongoDBSessionStorage } = require("@shopify/shopify-app-session-storage-mongodb");
+const Shop = require("../models/Shop");   // ✅ relative path fix
 
-const Shop = require("../models/Shop");
-
-const app = express(); // ✅ create the app here
+const app = express();
 const serverless = require("serverless-http"); // ✅ use this for serverless
 
-// Setup MongoDB session storage
-const sessionStorage = new MongoDBSessionStorage(
-  process.env.MONGO_URI,   // Your Atlas connection string
-  "sessions"                 // MongoDB collection name
-);
+// Connect MongoDB
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log("✅ MongoDB connected"))
+  .catch(err => console.error("❌ MongoDB error:", err));
+
+const sessionStorage = new MongoDBSessionStorage(process.env.MONGO_URI, "sessions");
 
 const shopify = shopifyApi({
   apiKey: process.env.SHOPIFY_API_KEY,
@@ -28,47 +28,53 @@ const shopify = shopifyApi({
   restResources,
   adapter: nodeAdapter,
   sessionStorage,
-  // Add this to fix SameSite cookie issue:
-  cookie: {
-    secure: true,         // must be true for HTTPS
-    sameSite: "none",     // allow cross-site in embedded Shopify apps
-  },
 });
 
-
-router.get("/auth", async (req, res) => {
+// Routes
+app.get("/", (req, res) => {
   const shop = req.query.shop;
-  if (!shop) return res.status(400).send("Missing shop param");
+  if (!shop) return res.status(400).send("Missing ?shop= parameter");
+  res.redirect(`/auth?shop=${shop}`);
+});
 
-  const authRoute = await shopify.auth.begin({
+// ✅ CORRECTED CODE
+
+app.get("/auth", async (req, res) => {
+  const shop = req.query.shop;
+  if (!shop) {
+    return res.status(400).send("Missing shop param");
+  }
+
+  // The `begin` function will handle the redirection itself.
+  // We still `await` it to ensure the process completes.
+  await shopify.auth.begin({
     shop,
     callbackPath: "/auth/callback",
     isOnline: false,
     rawRequest: req,
     rawResponse: res,
   });
-  res.redirect(authRoute);
+
+  // No more res.redirect() here!
 });
 
-router.get("/auth/callback", async (req, res) => {
+app.get("/auth/callback", async (req, res) => {
   try {
     const session = await shopify.auth.callback({
       rawRequest: req,
       rawResponse: res,
     });
 
-    // Save token to MongoDB (Shop collection)
     await Shop.findOneAndUpdate(
       { shop: session.shop },
       { accessToken: session.accessToken },
       { upsert: true, new: true }
     );
 
-    console.log(`✅ Saved token for ${session.shop}`);
-
+    console.log(`✅ Token saved for ${session.shop}`);
     res.send("App installed successfully! You can close this window.");
   } catch (error) {
-    console.error("OAuth Error:", error);
+    console.error("❌ OAuth error:", error);
     res.status(500).send("Auth failed");
   }
 });
